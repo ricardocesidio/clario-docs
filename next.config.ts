@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
     root: process.cwd(),
   },
   serverExternalPackages: ["pdf-parse", "pdfkit"],
+  devIndicators: {
+    position: "bottom-right",
+  },
 }
 
 export default nextConfig
