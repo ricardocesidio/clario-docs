@@ -87,7 +87,7 @@ export default function RegisterPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <div className="relative">
+                <div className="relative" style={{ marginBottom: "5px" }}>
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
