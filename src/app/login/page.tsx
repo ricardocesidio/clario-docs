@@ -113,9 +113,13 @@ export default function LoginPage() {
               variant="outline"
               size="sm"
               className="text-xs"
-              onClick={() => {
+              onClick={async () => {
                 setEmail("demo@clariodocs.com")
                 setPassword("demo1234")
+                setLoading(true)
+                const result = await login("demo@clariodocs.com", "demo1234")
+                setLoading(false)
+                if (result.error) setError(result.error)
               }}
             >
               <Sparkles className="w-3 h-3 mr-1.5 text-primary" />

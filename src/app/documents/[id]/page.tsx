@@ -254,7 +254,7 @@ export default function DocumentDetailPage() {
         <Card className="border-red-500/30 bg-red-500/5">
           <CardContent className="p-4 flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-red-400" />
-            <p className="text-sm text-red-400">Analysis failed. The document may not contain extractable text.</p>
+            <p className="text-sm text-red-400">Analysis failed. Try uploading a different file, or check that the document contains extractable text.</p>
           </CardContent>
         </Card>
       )}
