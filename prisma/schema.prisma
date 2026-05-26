@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum Plan {
+  FREE
+  PRO
+  BUSINESS
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  CANCELED
+  PAST_DUE
+  TRIALING
+}
+
+enum DocumentStatus {
+  UPLOADED
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+}
+
+model User {
+  id                 String             @id @default(cuid())
+  name               String?
+  email              String             @unique
+  passwordHash       String?
+  role               UserRole           @default(USER)
+  plan               Plan               @default(FREE)
+  stripeCustomerId   String?
+  stripeSubscriptionId String?
+  subscriptionStatus SubscriptionStatus @default(INACTIVE)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  documents    Document[]
+  chatMessages ChatMessage[]
+  usage        Usage[]
+}
+
+model Document {
+  id            String         @id @default(cuid())
+  userId        String
+  fileName      String
+  originalName  String
+  fileType      String
+  fileSize      Int
+  storagePath   String
+  extractedText String?
+  status        DocumentStatus @default(UPLOADED)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysis     Analysis?
+  chatMessages ChatMessage[]
+
+  @@index([userId])
+}
+
+model Analysis {
+  id               String   @id @default(cuid())
+  documentId       String   @unique
+  shortSummary     String?
+  detailedSummary  String?
+  keyPoints        Json?
+  risks            Json?
+  suggestedActions Json?
+  keywords         Json?
+  documentType     String?
+  tone             String?
+  confidenceScore  Float?
+  suggestedQuestions Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+model ChatMessage {
+  id         String   @id @default(cuid())
+  documentId String
+  userId     String
+  role       ChatRole
+  content    String
+  createdAt  DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([userId])
+}
+
+model Usage {
+  id               String   @id @default(cuid())
+  userId           String
+  month            Int
+  year             Int
+  documentsAnalyzed Int     @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, month, year])
+  @@index([userId])
+}
