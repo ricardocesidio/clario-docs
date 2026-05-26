@@ -317,10 +317,51 @@ Use the one-click demo buttons on the login page to try the app instantly.
 
 1. Push code to GitHub
 2. Create a [Vercel](https://vercel.com) account and import the repo
-3. Create a [Neon](https://neon.tech) PostgreSQL database
-4. Add all environment variables in Vercel dashboard
-5. Deploy
-6. Set up Stripe webhook endpoint → `https://yourdomain.com/api/webhooks/stripe`
+3. Create a [Neon](https://neon.tech) or [Supabase](https://supabase.com) PostgreSQL database
+4. Copy the `DATABASE_URL` connection string
+5. In Vercel dashboard, add all environment variables (see `.env.example`):
+   - `DATABASE_URL`, `NEXTAUTH_SECRET`, `OPENAI_API_KEY`
+   - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+   - `NEXT_PUBLIC_STRIPE_PRO_PRICE_ID`, `NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID`
+   - `STORAGE_PROVIDER` (use `r2` for production, `local` for development)
+   - R2 credentials if using Cloudflare R2
+6. Deploy
+7. Run database migrations:
+   ```bash
+   npx prisma db push
+   ```
+8. Seed the database:
+   ```bash
+   npx tsx prisma/seed.ts
+   ```
+9. Set up Stripe webhook endpoint:
+   - URL: `https://yourdomain.com/api/webhooks/stripe`
+   - Events: `checkout.session.completed`, `invoice.paid`, `customer.subscription.updated`, `customer.subscription.deleted`
+
+### Storage Setup
+
+The app supports two storage providers controlled by `STORAGE_PROVIDER`:
+
+#### Local (Development)
+```env
+STORAGE_PROVIDER=local
+UPLOAD_DIR="./uploads"
+```
+Files are stored on the local filesystem. Suitable for development only.
+
+#### Cloudflare R2 (Production)
+```env
+STORAGE_PROVIDER=r2
+R2_ACCOUNT_ID="your-cloudflare-account-id"
+R2_ACCESS_KEY_ID="your-r2-access-key"
+R2_SECRET_ACCESS_KEY="your-r2-secret-key"
+R2_BUCKET_NAME="clariodocs"
+R2_PUBLIC_URL="https://pub-xxxx.r2.dev"  # Optional
+```
+1. Create an R2 bucket in Cloudflare dashboard
+2. Generate API token with read/write permissions
+3. Add the credentials to your Vercel environment variables
+4. Files are stored in R2 instead of the local filesystem
 
 ### Docker (Alternative)
 
@@ -397,11 +438,67 @@ This project demonstrates:
 - **Security** — JWT auth, bcrypt password hashing, route protection, file validation
 - **DevOps ready** — Environment-based config, Vercel/Neon deployment ready
 
+## Production Checklist
+
+Before deploying, verify each item:
+
+- [ ] Vercel project created and connected to GitHub
+- [ ] Neon or Supabase PostgreSQL database created
+- [ ] `DATABASE_URL` configured in Vercel environment variables
+- [ ] `NEXTAUTH_SECRET` configured (generate with `openssl rand -base64 32`)
+- [ ] `OPENAI_API_KEY` configured (from platform.openai.com)
+- [ ] `STRIPE_SECRET_KEY` configured (test mode key from Stripe dashboard)
+- [ ] `STRIPE_WEBHOOK_SECRET` configured (from Stripe CLI or dashboard)
+- [ ] `NEXT_PUBLIC_STRIPE_PRO_PRICE_ID` and `NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID` configured
+- [ ] Stripe webhook endpoint set to `https://yourdomain.com/api/webhooks/stripe`
+- [ ] Storage provider configured (`STORAGE_PROVIDER=local` for dev, `r2` for production)
+- [ ] Prisma migration run: `npx prisma db push` or `npx prisma migrate deploy`
+- [ ] Database seeded: `npx tsx prisma/seed.ts`
+- [ ] Build passes: `npm run build`
+- [ ] Demo accounts work (demo@clariodocs.com / admin@clariodocs.com)
+
+### Deploy to Vercel
+
+```bash
+# 1. Push code to GitHub
+git push origin main
+
+# 2. Import repo to Vercel (vercel.com/import)
+# 3. Add all environment variables in Vercel dashboard
+# 4. Set build command: npm run build
+# 5. Set output directory: .next
+# 6. Deploy
+```
+
+### Database (Neon or Supabase)
+
+```bash
+# After deploying, run migrations on the production database:
+npx prisma db push
+
+# Seed the database:
+npx tsx prisma/seed.ts
+```
+
+### Stripe Webhook
+
+```bash
+# In Stripe Dashboard, add a webhook endpoint:
+# Endpoint URL: https://yourdomain.com/api/webhooks/stripe
+# Events to listen for:
+#   - checkout.session.completed
+#   - invoice.paid
+#   - customer.subscription.updated
+#   - customer.subscription.deleted
+#
+# Copy the webhook signing secret to STRIPE_WEBHOOK_SECRET
+```
+
 ## Known Limitations
 
 - **File type support:** PDF and TXT are fully supported. DOC/DOCX support is planned but not yet implemented.
-- **Export:** Markdown export is supported. PDF export is planned.
-- **Storage:** Local file storage is used in development. For production, migrate to S3, Cloudflare R2, or UploadThing.
+- **Export:** Markdown and PDF export are supported. More export formats are planned.
+- **Storage:** Local filesystem storage is for development. Cloudflare R2 is supported for production.
 - **Password change:** Not yet implemented in settings.
 - **Email notifications:** Not yet implemented (Resend integration planned).
 - **Team workspaces:** Not yet implemented.
@@ -409,9 +506,7 @@ This project demonstrates:
 
 ## Future Improvements
 
-- Cloudflare R2 or S3 storage for production file handling
 - Team workspaces with shared documents
-- PDF export with formatting
 - DOC/DOCX text extraction
 - Email notifications via Resend
 - Advanced semantic search over all documents

@@ -1,0 +1,136 @@
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { getCurrentUser } from "@/lib/auth"
+import PDFDocument from "pdfkit"
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const user = await getCurrentUser(request)
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const { id } = await params
+  const document = await prisma.document.findFirst({
+    where: { id, userId: user.id },
+    include: { analysis: true },
+  })
+
+  if (!document) {
+    return NextResponse.json({ error: "Document not found" }, { status: 404 })
+  }
+
+  const analysis = document.analysis
+  const doc = new PDFDocument({ margin: 50 })
+
+  const chunks: Buffer[] = []
+  doc.on("data", (chunk: Buffer) => chunks.push(chunk))
+
+  return new Promise<NextResponse>((resolve) => {
+    doc.on("end", () => {
+      const pdfBuffer = Buffer.concat(chunks)
+      resolve(
+        new NextResponse(pdfBuffer, {
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="${document.originalName.replace(/\.[^/.]+$/, "")}-analysis.pdf"`,
+          },
+        })
+      )
+    })
+
+    doc.fontSize(20).font("Helvetica-Bold").text("Document Analysis", { align: "center" })
+    doc.moveDown(0.5)
+    doc.fontSize(10).font("Helvetica").fillColor("#666")
+      .text(`File: ${document.originalName}`, { align: "center" })
+      .text(`Date: ${new Date(document.createdAt).toLocaleDateString()}`, { align: "center" })
+      .text(`Type: ${document.fileType}`, { align: "center" })
+      .text(`Size: ${(document.fileSize / 1024).toFixed(1)} KB`, { align: "center" })
+    doc.moveDown(0.5)
+
+    if (analysis) {
+      if (analysis.documentType) {
+        doc.fillColor("#666").fontSize(10).text(`Document Type: ${analysis.documentType}`, { align: "center" })
+      }
+      if (analysis.confidenceScore) {
+        doc.text(`Confidence: ${(analysis.confidenceScore * 100).toFixed(0)}%`, { align: "center" })
+      }
+      if (analysis.tone) {
+        doc.text(`Tone: ${analysis.tone}`, { align: "center" })
+      }
+    }
+
+    doc.moveDown(1)
+
+    if (analysis) {
+      if (analysis.shortSummary) {
+        doc.moveDown(0.5)
+        doc.fontSize(14).font("Helvetica-Bold").fillColor("#000").text("Summary")
+        doc.moveDown(0.3)
+        doc.fontSize(10).font("Helvetica").fillColor("#333").text(analysis.shortSummary as string)
+      }
+
+      if (analysis.detailedSummary) {
+        doc.moveDown(0.5)
+        doc.fontSize(14).font("Helvetica-Bold").fillColor("#000").text("Detailed Analysis")
+        doc.moveDown(0.3)
+        doc.fontSize(10).font("Helvetica").fillColor("#333").text(analysis.detailedSummary as string)
+      }
+
+      if (analysis.keyPoints && Array.isArray(analysis.keyPoints) && analysis.keyPoints.length > 0) {
+        doc.moveDown(0.5)
+        doc.fontSize(14).font("Helvetica-Bold").fillColor("#000").text("Key Points")
+        doc.moveDown(0.3)
+        doc.fontSize(10).font("Helvetica").fillColor("#333")
+        for (const point of analysis.keyPoints as string[]) {
+          doc.text(`• ${point}`)
+        }
+      }
+
+      if (analysis.risks && Array.isArray(analysis.risks) && analysis.risks.length > 0) {
+        doc.moveDown(0.5)
+        doc.fontSize(14).font("Helvetica-Bold").fillColor("#c00").text("Risks & Alerts")
+        doc.moveDown(0.3)
+        doc.fontSize(10).font("Helvetica").fillColor("#c00")
+        for (const risk of analysis.risks as string[]) {
+          doc.text(`⚠ ${risk}`)
+        }
+      }
+
+      if (analysis.suggestedActions && Array.isArray(analysis.suggestedActions) && analysis.suggestedActions.length > 0) {
+        doc.moveDown(0.5)
+        doc.fontSize(14).font("Helvetica-Bold").fillColor("#000").text("Suggested Actions")
+        doc.moveDown(0.3)
+        doc.fontSize(10).font("Helvetica").fillColor("#333")
+        for (const action of analysis.suggestedActions as string[]) {
+          doc.text(`• ${action}`)
+        }
+      }
+
+      if (analysis.keywords && Array.isArray(analysis.keywords) && analysis.keywords.length > 0) {
+        doc.moveDown(0.5)
+        doc.fontSize(14).font("Helvetica-Bold").fillColor("#000").text("Keywords")
+        doc.moveDown(0.3)
+        doc.fontSize(10).font("Helvetica").fillColor("#666")
+        doc.text((analysis.keywords as string[]).join(", "))
+      }
+
+      if (analysis.suggestedQuestions && Array.isArray(analysis.suggestedQuestions) && analysis.suggestedQuestions.length > 0) {
+        doc.moveDown(0.5)
+        doc.fontSize(14).font("Helvetica-Bold").fillColor("#000").text("Suggested Questions")
+        doc.moveDown(0.3)
+        doc.fontSize(10).font("Helvetica").fillColor("#333")
+        for (const q of analysis.suggestedQuestions as string[]) {
+          doc.text(`• ${q}`)
+        }
+      }
+    }
+
+    doc.moveDown(1)
+    doc.fontSize(8).fillColor("#999").text(`Generated by ClarioDocs on ${new Date().toLocaleString()}`, { align: "center" })
+
+    doc.end()
+  })
+}

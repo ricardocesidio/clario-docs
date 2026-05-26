@@ -4,15 +4,12 @@ import { getCurrentUser } from "@/lib/auth"
 import { checkUsageLimit, incrementUsage } from "@/lib/usage"
 import { analyzeDocument } from "@/lib/openai"
 import {
-  ensureUploadDir,
-  getUploadPath,
+  saveDocumentFile,
   generateFileName,
   extractTextFromFile,
   isAllowedFileType,
   getFileTypeLabel,
 } from "@/lib/documents"
-import fs from "fs"
-import path from "path"
 
 export async function POST(request: NextRequest) {
   const user = await getCurrentUser(request)
@@ -56,11 +53,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    ensureUploadDir()
     const buffer = Buffer.from(await file.arrayBuffer())
     const fileName = generateFileName(file.name)
-    const filePath = getUploadPath(fileName)
-    fs.writeFileSync(filePath, buffer)
+    await saveDocumentFile(fileName, buffer)
 
     const document = await prisma.document.create({
       data: {
@@ -74,7 +69,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    const extractedText = await extractTextFromFile(filePath, file.type)
+    const extractedText = await extractTextFromFile(fileName, file.type)
 
     await prisma.document.update({
       where: { id: document.id },

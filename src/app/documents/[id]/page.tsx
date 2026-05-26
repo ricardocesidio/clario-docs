@@ -95,20 +95,22 @@ export default function DocumentDetailPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  const exportDoc = async () => {
+  const exportDoc = async (format: "md" | "pdf") => {
+    const endpoint = format === "pdf" ? "export-pdf" : "export"
+    const ext = format === "pdf" ? "pdf" : "md"
     try {
-      const res = await fetch(`/api/documents/${params.id}/export`)
+      const res = await fetch(`/api/documents/${params.id}/${endpoint}`)
       if (res.ok) {
         const blob = await res.blob()
         const url = URL.createObjectURL(blob)
         const a = document.createElement("a")
         a.href = url
-        a.download = `${doc?.originalName?.replace(/\.[^/.]+$/, "") || "document"}-analysis.md`
+        a.download = `${doc?.originalName?.replace(/\.[^/.]+$/, "") || "document"}-analysis.${ext}`
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
-        toast.success("Analysis exported as Markdown")
+        toast.success(`Analysis exported as ${format.toUpperCase()}`)
       } else {
         toast.error("Failed to export")
       }
@@ -221,12 +223,18 @@ export default function DocumentDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {doc.analysis && (
-            <Button variant="outline" size="sm" onClick={exportDoc} className="text-xs">
-              <Download className="w-3.5 h-3.5 mr-1.5" />
-              Export MD
-            </Button>
-          )}
+            {doc.analysis && (
+              <>
+                <Button variant="outline" size="sm" onClick={() => exportDoc("md")} className="text-xs">
+                  <Download className="w-3.5 h-3.5 mr-1.5" />
+                  MD
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => exportDoc("pdf")} className="text-xs">
+                  <Download className="w-3.5 h-3.5 mr-1.5" />
+                  PDF
+                </Button>
+              </>
+            )}
           <Button variant="ghost" size="icon" onClick={deleteDoc} className="text-muted-foreground hover:text-destructive">
             <Trash2 className="w-4 h-4" />
           </Button>

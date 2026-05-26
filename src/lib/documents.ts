@@ -1,43 +1,34 @@
 import { prisma } from "./prisma"
-import fs from "fs"
+import { getStorageProvider } from "./storage"
+import { extractText } from "./extract-text"
 import path from "path"
 
-function getUploadDir() {
-  return process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads")
+export async function saveDocumentFile(fileName: string, buffer: Buffer): Promise<string> {
+  const storage = getStorageProvider()
+  return storage.save(fileName, buffer)
 }
 
-export function ensureUploadDir() {
-  const dir = getUploadDir()
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true })
-  }
+export function getDocumentPath(fileName: string): string {
+  const storage = getStorageProvider()
+  return storage.getPath(fileName)
 }
 
-export function getUploadPath(fileName: string): string {
-  return path.join(getUploadDir(), fileName)
+export async function deleteDocumentFile(storagePath: string) {
+  const storage = getStorageProvider()
+  await storage.delete(storagePath)
+}
+
+export async function readDocumentFile(fileName: string): Promise<Buffer> {
+  const storage = getStorageProvider()
+  return storage.get(fileName)
 }
 
 export async function extractTextFromFile(
-  filePath: string,
+  fileName: string,
   fileType: string
 ): Promise<string> {
-  if (fileType === "application/pdf") {
-    try {
-      const pdfParse = require("pdf-parse")
-      const buffer = fs.readFileSync(filePath)
-      const data = await pdfParse(buffer)
-      return data.text || ""
-    } catch (error) {
-      console.error("PDF parsing error:", error)
-      return "Failed to extract text from PDF. The file may be scanned or image-based."
-    }
-  }
-
-  if (fileType === "text/plain" || fileType === ".txt") {
-    return fs.readFileSync(filePath, "utf-8")
-  }
-
-  return "Unsupported file type for text extraction."
+  const buffer = await readDocumentFile(fileName)
+  return extractText(buffer, fileType, fileName)
 }
 
 export function isAllowedFileType(mimeType: string): boolean {
@@ -61,17 +52,6 @@ export function generateFileName(originalName: string): string {
   const timestamp = Date.now()
   const random = Math.random().toString(36).slice(2, 8)
   return `${timestamp}-${random}${ext}`
-}
-
-export function deleteDocumentFile(storagePath: string) {
-  const fullPath = getUploadPath(storagePath)
-  try {
-    if (fs.existsSync(fullPath)) {
-      fs.unlinkSync(fullPath)
-    }
-  } catch (error) {
-    console.error("Failed to delete file:", error)
-  }
 }
 
 export async function getDocumentsByUser(
