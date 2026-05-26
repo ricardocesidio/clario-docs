@@ -188,7 +188,7 @@ export default function DocumentsPage() {
                         e.preventDefault()
                         deleteDocument(doc.id, doc.originalName)
                       }}
-                      className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
+                      className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

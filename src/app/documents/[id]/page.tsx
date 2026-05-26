@@ -383,7 +383,7 @@ export default function DocumentDetailPage() {
                     <button
                       key={i}
                       onClick={() => askQuestion(q)}
-                      className="px-3 py-1.5 rounded-lg border border-border bg-muted/30 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-left"
+                      className="px-3 py-1.5 rounded-lg border border-border bg-muted/30 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-left cursor-pointer"
                     >
                       {q}
                     </button>
@@ -405,7 +405,7 @@ export default function DocumentDetailPage() {
             variant="ghost"
             size="sm"
             onClick={() => setShowText(!showText)}
-            className="text-xs"
+            className="text-xs cursor-pointer"
           >
             {showText ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
             {showText ? "Hide" : "Show"}

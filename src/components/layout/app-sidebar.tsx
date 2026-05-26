@@ -46,7 +46,7 @@ export function AppSidebar() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="fixed top-4 left-4 z-50 lg:hidden p-2 rounded-lg bg-card border border-border"
+        className="fixed top-4 left-4 z-50 lg:hidden p-2 rounded-lg bg-card border border-border cursor-pointer"
       >
         <Menu className="w-5 h-5" />
       </button>
@@ -64,7 +64,7 @@ export function AppSidebar() {
             </div>
             <span className="font-semibold text-sidebar-foreground">ClarioDocs</span>
           </Link>
-          <button onClick={() => setOpen(false)} className="lg:hidden p-1 rounded hover:bg-sidebar-accent">
+          <button onClick={() => setOpen(false)} className="lg:hidden p-1 rounded hover:bg-sidebar-accent cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -139,7 +139,7 @@ export function AppSidebar() {
 
       {open && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden cursor-pointer"
           onClick={() => setOpen(false)}
         />
       )}

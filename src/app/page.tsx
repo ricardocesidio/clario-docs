@@ -235,7 +235,7 @@ export default function LandingPage() {
               )}
             </div>
 
-            <button onClick={() => setMobileMenu(!mobileMenu)} className="md:hidden p-2">
+            <button onClick={() => setMobileMenu(!mobileMenu)} className="md:hidden p-2 cursor-pointer">
               {mobileMenu ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
@@ -511,7 +511,7 @@ export default function LandingPage() {
               >
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/30 transition-colors"
+                    className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/30 transition-colors cursor-pointer"
                 >
                   <span className="font-medium">{faq.question}</span>
                   <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${openFaq === i ? "rotate-180" : ""}`} />
