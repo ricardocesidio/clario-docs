@@ -3,31 +3,23 @@ import { AnalysisResult } from "@/types"
 
 function getClient() {
   const apiKey = process.env.OPENAI_API_KEY
-  if (!apiKey || apiKey === "sk-placeholder") {
-    return null
-  }
+  if (!apiKey || apiKey === "sk-placeholder") return null
   return new OpenAI({ apiKey })
 }
 
 export async function analyzeDocument(text: string): Promise<AnalysisResult> {
   const client = getClient()
-
   if (client) {
     try {
       return await realAnalysis(client, text)
     } catch (error: any) {
-      if (
-        error?.code === "insufficient_quota" ||
-        error?.status === 429 ||
-        error?.message?.includes("quota")
-      ) {
+      if (error?.code === "insufficient_quota" || error?.status === 429 || error?.message?.includes("quota")) {
         console.warn("OpenAI quota exceeded, using mock analysis")
       } else {
         console.warn("OpenAI API error, using mock analysis:", error?.message)
       }
     }
   }
-
   return mockAnalysis(text)
 }
 
@@ -37,23 +29,17 @@ export async function chatWithDocument(
   chatHistory: Array<{ role: "user" | "assistant"; content: string }> = []
 ): Promise<string> {
   const client = getClient()
-
   if (client) {
     try {
       return await realChat(client, documentText, userMessage, chatHistory)
     } catch (error: any) {
-      if (
-        error?.code === "insufficient_quota" ||
-        error?.status === 429 ||
-        error?.message?.includes("quota")
-      ) {
+      if (error?.code === "insufficient_quota" || error?.status === 429 || error?.message?.includes("quota")) {
         console.warn("OpenAI quota exceeded, using mock chat")
       } else {
         console.warn("OpenAI chat error, using mock response:", error?.message)
       }
     }
   }
-
   return mockChat(documentText, userMessage)
 }
 
@@ -72,18 +58,15 @@ Return a JSON object with these exact fields:
 - keywords: Array of 5-10 important keywords
 - documentType: The type of document (contract, invoice, resume, report, article, technical, letter, etc.)
 - tone: The tone of the document (formal, informal, urgent, neutral, persuasive, etc.)
-- confidenceScore: A number between 0 and 1 indicating how confident you are in your analysis
-- suggestedQuestions: Array of 3-5 questions a user might want to ask about this document
+- confidenceScore: A number between 0 and 1
+- suggestedQuestions: Array of 3-5 questions a user might want to ask
 
 ONLY return valid JSON, no other text.`
 
   const completion = await client.chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
-      {
-        role: "system",
-        content: "You are a document analysis AI. You always respond with valid JSON only.",
-      },
+      { role: "system", content: "You are a document analysis AI. You always respond with valid JSON only." },
       { role: "user", content: prompt },
     ],
     response_format: { type: "json_object" },
@@ -93,12 +76,7 @@ ONLY return valid JSON, no other text.`
 
   const content = completion.choices[0]?.message?.content
   if (!content) throw new Error("AI returned empty response")
-
-  try {
-    return JSON.parse(content) as AnalysisResult
-  } catch {
-    throw new Error("Failed to parse AI response as JSON")
-  }
+  return JSON.parse(content) as AnalysisResult
 }
 
 async function realChat(
@@ -114,10 +92,7 @@ ${documentText.slice(0, 25000)}`
 
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: systemPrompt },
-    ...chatHistory.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    })),
+    ...chatHistory.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
     { role: "user", content: userMessage },
   ]
 
@@ -131,171 +106,310 @@ ${documentText.slice(0, 25000)}`
   return completion.choices[0]?.message?.content || "I'm sorry, I couldn't process your question."
 }
 
+// ─── Improved Mock Analysis ─────────────────────────────────────────────────
+
+function extractKeywords(text: string, count: number = 8): string[] {
+  const words = text.toLowerCase().split(/[^a-zA-Z\u00C0-\u024F]+/).filter(w => w.length > 3)
+  const stopWords = new Set([
+    "this", "that", "with", "from", "have", "been", "will", "were", "they", "them",
+    "their", "when", "what", "which", "about", "than", "then", "also", "just",
+    "each", "some", "would", "could", "should", "more", "very", "after", "into",
+    "over", "such", "only", "other", "than", "there", "these", "those", "said",
+    "does", "being", "made", "make", "made", "well", "much", "many", "even",
+    "first", "last", "must", "shall", "like", "because", "while", "still", "yet",
+  ])
+  const freq: Record<string, number> = {}
+  for (const w of words) {
+    if (!stopWords.has(w)) freq[w] = (freq[w] || 0) + 1
+  }
+  return Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, count)
+    .map(([w]) => w)
+}
+
+function extractNumbers(text: string): number[] {
+  const matches = text.match(/\d+(?:[.,]\d+)?/g)
+  return matches ? matches.map(Number).filter(n => n > 0) : []
+}
+
+function extractEmail(text: string): string | null {
+  const m = text.match(/[\w.-]+@[\w.-]+\.\w+/)
+  return m ? m[0] : null
+}
+
+function extractName(text: string): string | null {
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean)
+  for (const line of lines.slice(0, 10)) {
+    if (/^[A-Z][a-z]+ [A-Z][a-z]+/.test(line) && line.length < 40 && !line.includes("@") && !line.includes("http")) {
+      return line
+    }
+  }
+  return null
+}
+
+function detectDocumentType(text: string): string {
+  const l = text.toLowerCase()
+  const scores: Record<string, number> = {
+    "Contract": 0, "Invoice": 0, "Resume/CV": 0, "Business Report": 0,
+    "Letter": 0, "Technical Document": 0, "Academic Paper": 0, "Legal Document": 0,
+  }
+  if (/\b(agreement|contract|party|indemnif|witnesseth|whereas|hereinafter|thereof)\b/i.test(text)) scores["Contract"] += 5
+  if (/\b(invoice|payment|due date|total due|subtotal|amount due|billing|receipt)\b/i.test(text)) scores["Invoice"] += 5
+  if (l.includes("$") || l.includes("€") || l.includes("£")) scores["Invoice"] += 2
+  if (/\b(resume|cv|experience|skills|education|employment|reference|qualified)\b/i.test(text)) scores["Resume/CV"] += 5
+  if (/\b(report|analysis|quarter|revenue|profit|growth|kpi|metric|fiscal)\b/i.test(text)) scores["Business Report"] += 4
+  if (/\b(dear |hello |sincerely|regards|enclosed|attached)\b/i.test(text)) scores["Letter"] += 3
+  if (/\b(specification|technical|architecture|deploy|config|api|endpoint|server)\b/i.test(text)) scores["Technical Document"] += 3
+  if (/\b(abstract|methodology|conclusion|references|research|study|experiment|hypothesis)\b/i.test(text)) scores["Academic Paper"] += 4
+  if (/\b(legal|court|lawsuit|plaintiff|defendant|statute|regulat|compliance|attorney)\b/i.test(text)) scores["Legal Document"] += 4
+  const maxScore = Math.max(...Object.values(scores))
+  if (maxScore === 0) return "General Document"
+  return Object.entries(scores).find(([, v]) => v === maxScore)![0]
+}
+
+function detectTone(text: string): string {
+  const l = text.toLowerCase()
+  if (/\b(urgent|immediate|asap|deadline|critical|important)\b/i.test(text)) return "urgent"
+  if (/\b(dear |sincerely|regards|respectfully|pleased|kindly)\b/i.test(text)) return "formal"
+  if (/\b(hey|hi |thanks|awesome|great|let's|guys)\b/i.test(text)) return "informal"
+  return "neutral"
+}
+
+function getFirstSentence(text: string): string {
+  const m = text.match(/[^.!?]*[.!?]/)
+  return m ? m[0].trim() : text.slice(0, 100).trim()
+}
+
 function mockAnalysis(text: string): AnalysisResult {
   const wordCount = text.split(/\s+/).length
-  const hasNumbers = /\d+/.test(text)
-  const hasCurrency = /[$€£¥]/.test(text)
-  const hasDate = /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(text)
-  const hasEmail = /\S+@\S+\.\S+/.test(text)
-  const lower = text.toLowerCase()
+  const numbers = extractNumbers(text)
+  const email = extractEmail(text)
+  const name = extractName(text)
+  const firstSentence = getFirstSentence(text)
+  const keywords = extractKeywords(text)
+  const documentType = detectDocumentType(text)
+  const tone = detectTone(text)
+  const preview = text.slice(0, 200).trim()
 
-  let documentType = "Document"
-  let tone = "neutral"
   const keyPoints: string[] = []
   const risks: string[] = []
   const actions: string[] = []
-  const keywords: string[] = []
 
-  if (lower.includes("agreement") || lower.includes("contract") || lower.includes("terms") || lower.includes("party")) {
-    documentType = "Contract"
-    tone = "formal"
-    keyPoints.push("Document appears to be a legal or contractual agreement")
-    keyPoints.push(`Contains approximately ${wordCount} words of content`)
-    risks.push("Review all terms and conditions carefully before signing")
-    risks.push("Check for auto-renewal or termination clauses")
-    actions.push("Review all clauses with legal counsel if needed")
-    actions.push("Verify all party names and dates are correct")
-    keywords.push("agreement", "terms", "parties", "obligations", "legal")
-  } else if (lower.includes("invoice") || lower.includes("payment") || lower.includes("due") || hasCurrency) {
-    documentType = "Invoice"
-    tone = "formal"
-    keyPoints.push("Document appears to be a financial invoice or billing document")
-    if (hasCurrency) keyPoints.push("Contains monetary amounts")
-    risks.push("Verify all charges are accurate before processing payment")
+  keyPoints.push(`Document contains approximately ${wordCount} words of content`)
+  keyPoints.push(`Detected as: ${documentType}`)
+
+  if (firstSentence.length > 10) {
+    keyPoints.push(`Opens with: "${firstSentence.slice(0, 80)}${firstSentence.length > 80 ? "..." : ""}"`)
+  }
+
+  if (numbers.length > 0) {
+    const topNums = numbers.slice(0, 5)
+    keyPoints.push(`Contains numerical data: ${topNums.join(", ")}`)
+  }
+
+  if (email) {
+    keyPoints.push(`Contact email found: ${email}`)
+  }
+
+  if (name) {
+    keyPoints.push(`Referenced name: ${name}`)
+  }
+
+  if (keywords.length > 0) {
+    keyPoints.push(`Key themes: ${keywords.slice(0, 4).join(", ")}`)
+  }
+
+  if (documentType === "Contract" || documentType === "Legal Document") {
+    risks.push("Review all terms, conditions, and obligations carefully")
+    risks.push("Check for auto-renewal, termination, and liability clauses")
+    risks.push("Verify all party names, dates, and signature requirements")
+    actions.push("Review with legal counsel before signing")
+    actions.push("Verify all dates and deadlines are feasible")
+    actions.push("Keep a signed copy for records")
+  } else if (documentType === "Invoice") {
+    risks.push("Verify all charges, taxes, and discounts are correct")
     risks.push("Check payment terms and late fee policies")
     actions.push("Process payment before the due date")
-    actions.push("Reconcile with purchase orders if applicable")
-    keywords.push("invoice", "payment", "amount", "due", "billing")
-  } else if (lower.includes("resume") || lower.includes("cv") || lower.includes("experience") || lower.includes("skills")) {
-    documentType = "Resume/CV"
-    tone = "professional"
-    keyPoints.push("Document is a resume or curriculum vitae")
-    keyPoints.push(`Contains ${wordCount} words describing professional experience`)
-    if (hasEmail) keyPoints.push("Contact information is included")
-    risks.push("Verify employment dates and credentials")
-    actions.push("Review against job requirements")
-    actions.push("Prepare interview questions based on listed experience")
-    keywords.push("resume", "experience", "skills", "career", "qualifications")
-  } else if (lower.includes("report") || lower.includes("analysis") || lower.includes("summary") || lower.includes("quarter")) {
-    documentType = "Business Report"
-    tone = "formal"
-    keyPoints.push("Document is a business or analytical report")
-    if (hasNumbers) keyPoints.push("Contains numerical data and metrics")
-    keyPoints.push(`Approximately ${wordCount} words in length`)
+    actions.push("Reconcile with purchase orders or agreements")
+    if (numbers.length > 0) actions.push(`Verify the amount${numbers.length > 1 ? "s" : ""} against what was expected`)
+  } else if (documentType === "Resume/CV") {
+    risks.push("Verify employment dates, education, and credentials")
+    risks.push("Check for employment gaps or inconsistencies")
+    actions.push("Review against the job requirements")
+    actions.push("Prepare technical or behavioral interview questions")
+    if (email) actions.push(`Contact candidate at ${email} to schedule an interview`)
+  } else if (documentType === "Business Report") {
+    risks.push("Verify data sources and methodology before making decisions")
     actions.push("Review key findings and recommendations")
     actions.push("Share relevant sections with stakeholders")
-    keywords.push("report", "analysis", "data", "findings", "metrics")
-  } else if (lower.includes("dear") || lower.includes("hello") || lower.includes("regards") || lower.includes("sincerely")) {
-    documentType = "Letter/Correspondence"
-    tone = "professional"
-    keyPoints.push("Document is a letter or formal correspondence")
-    risks.push("Verify sender identity and authenticity")
+    if (numbers.length > 0) actions.push("Track the metrics mentioned over time")
+  } else if (documentType === "Letter") {
+    risks.push("Verify sender authenticity and contact information")
     actions.push("Respond within the stated timeframe if applicable")
-    keywords.push("letter", "correspondence", "communication")
+    actions.push("File the correspondence for records")
+  } else if (documentType === "Technical Document") {
+    risks.push("Verify technical specifications against requirements")
+    actions.push("Review architecture and implementation details")
+    actions.push("Check for version compatibility and dependencies")
+  } else if (documentType === "Academic Paper") {
+    risks.push("Verify citations and references for accuracy")
+    actions.push("Review methodology and conclusions critically")
+    actions.push("Consider the paper's limitations and scope")
   } else {
-    keyPoints.push(`Document contains approximately ${wordCount} words`)
-    keyPoints.push("Content covers general topics")
-    actions.push("Review the full document for context")
-    actions.push("Extract any action items or next steps")
-    keywords.push("document", "content", "information")
+    risks.push("Review the document carefully for important details")
+    actions.push("Extract any action items, deadlines, or next steps")
+    actions.push("File or organize the document appropriately")
+    if (email) actions.push(`Contact the sender at ${email} if clarification is needed`)
   }
 
-  if (hasDate) {
-    keyPoints.push("Contains date references — check for deadlines or important dates")
+  if (text.length > 500 && wordCount > 30) {
+    const midSection = text.slice(Math.floor(text.length / 3), Math.floor(text.length / 3) + 150).trim()
+    if (midSection.length > 20) {
+      actions.push(`Review this key excerpt: "${midSection.slice(0, 100)}..."`)
+    }
   }
+
+  const shortSummary = `${documentType}: ${preview.slice(0, 120)}${preview.length > 120 ? "..." : ""}`
+
+  const detailedSummaryLines: string[] = [
+    `This document has been analyzed by ClarioDocs AI. It is classified as a "${documentType}" with a ${tone} tone.`,
+    "",
+    `The document contains approximately ${wordCount} words.`,
+  ]
+
+  if (firstSentence.length > 10) {
+    detailedSummaryLines.push(`It begins with: "${firstSentence}"`)
+  }
+
+  if (email) {
+    detailedSummaryLines.push(`Contact information (${email}) is present in the document.`)
+  }
+
+  if (name) {
+    detailedSummaryLines.push(`A referenced individual or entity is identified: ${name}.`)
+  }
+
+  if (numbers.length > 0) {
+    detailedSummaryLines.push(`Notable numbers found: ${numbers.slice(0, 8).join(", ")}${numbers.length > 8 ? "..." : ""}.`)
+  }
+
+  if (keywords.length > 0) {
+    detailedSummaryLines.push(`Key topics include: ${keywords.slice(0, 6).join(", ")}.`)
+  }
+
+  const suggestedQuestions: string[] = [
+    "Summarize this document in 3 bullet points",
+    "What are the most important items to note?",
+    "What actions should I take based on this?",
+  ]
+
+  if (documentType === "Contract" || documentType === "Legal Document") {
+    suggestedQuestions.push("What are the key risks in this contract?")
+  } else if (documentType === "Invoice") {
+    suggestedQuestions.push("What is the total amount and when is it due?")
+  } else if (documentType === "Resume/CV") {
+    suggestedQuestions.push("What are the candidate's strongest qualifications?")
+  } else {
+    suggestedQuestions.push("Are there any dates or deadlines I should know about?")
+  }
+
+  suggestedQuestions.push("Explain this document in simple terms")
 
   return {
-    shortSummary: `This ${documentType.toLowerCase()} contains ${wordCount} words and discusses relevant topics that warrant attention.`,
-    detailedSummary: `This ${documentType.toLowerCase()} has been analyzed by ClarioDocs AI. The document contains approximately ${wordCount} words. Based on the content analysis, it appears to be a ${tone} document. ${
-      hasNumbers ? "The document includes numerical data that may be significant. " : ""
-    }${
-      hasDate ? "Date references are present and should be reviewed for deadlines. " : ""
-    }A thorough review of the full content is recommended to fully understand the context and implications.`,
+    shortSummary,
+    detailedSummary: detailedSummaryLines.join("\n\n"),
     keyPoints,
     risks,
     suggestedActions: actions,
-    keywords: [...new Set(keywords)],
+    keywords,
     documentType,
     tone,
     confidenceScore: 0.75,
-    suggestedQuestions: [
-      "Summarize this in 3 bullet points",
-      "What are the most important items here?",
-      "What actions should I take next?",
-      "Are there any deadlines I should be aware of?",
-      "Explain this document in simple terms",
-    ],
+    suggestedQuestions,
   }
 }
 
 function mockChat(documentText: string, userMessage: string): string {
   const lower = userMessage.toLowerCase()
-  const preview = documentText.slice(0, 500)
+  const keywords = extractKeywords(documentText, 6)
+  const wordCount = documentText.split(/\s+/).length
+  const numbers = extractNumbers(documentText)
+  const email = extractEmail(documentText)
+  const docType = detectDocumentType(documentText)
+  const firstSentence = getFirstSentence(documentText)
 
-  if (lower.includes("summar") || lower.includes("bullet")) {
-    const wordCount = documentText.split(/\s+/).length
-    return `Based on the document content (${wordCount} words total):
+  if (lower.includes("summar") || lower.includes("bullet") || lower.includes("overview")) {
+    return `Based on the document content (${wordCount} words):
 
-• This document covers various topics and contains information that should be reviewed
-• Key details and important points are spread throughout the content
-• A thorough reading is recommended to capture all relevant information
+• Document type: ${docType}
+• ${firstSentence ? `Opens with: "${firstSentence.slice(0, 100)}"` : "Contains textual content"}
+• ${numbers.length > 0 ? `Key numbers found: ${numbers.slice(0, 5).join(", ")}` : "No significant numerical data found"}
+• ${keywords.length > 0 ? `Main topics: ${keywords.slice(0, 5).join(", ")}` : "General content"}
+• ${email ? `Contact: ${email}` : "No contact information detected"}
 
-For a more specific summary, consider asking about particular aspects of the document.`
+For a more specific breakdown, ask about particular sections of the document.`
   }
 
-  if (lower.includes("risk") || lower.includes("concern") || lower.includes("alert") || lower.includes("watch")) {
-    return `Based on my analysis of this document, here are potential areas to review:
-
-• Verify the accuracy of all names, dates, and figures mentioned
-• Check for any terms or conditions that may require action
-• Ensure all parties and their obligations are clearly defined
-• Look for any deadlines or expiration dates
-
-These are general recommendations — consult with appropriate professionals for specific advice.`
+  if (lower.includes("risk") || lower.includes("concern") || lower.includes("alert") || lower.includes("watch") || lower.includes("danger")) {
+    const lines: string[] = ["Based on the document analysis, here are areas to review:"]
+    lines.push("")
+    if (docType === "Contract" || docType === "Legal Document") {
+      lines.push("• Carefully review all terms, conditions, and fine print")
+      lines.push("• Check for auto-renewal, termination, and liability clauses")
+      lines.push("• Verify all party names and effective dates")
+      lines.push("• Look for any non-compete or exclusivity provisions")
+    } else if (docType === "Invoice") {
+      lines.push("• Verify all line items, quantities, and prices are correct")
+      lines.push("• Check the payment terms, due date, and late fees")
+      lines.push("• Confirm the invoice matches any purchase order or agreement")
+    } else if (docType === "Resume/CV") {
+      lines.push("• Verify employment dates and educational credentials")
+      lines.push("• Look for gaps in employment history")
+      lines.push("• Check for consistency in the narrative")
+    } else {
+      lines.push("• Read the document carefully for any important details or deadlines")
+      lines.push("• Verify any claims, data, or references mentioned")
+      lines.push("• Check for contact information or next steps")
+    }
+    if (numbers.length > 0) lines.push(`• Pay attention to the numbers mentioned: ${numbers.slice(0, 5).join(", ")}`)
+    return lines.join("\n")
   }
 
-  if (lower.includes("action") || lower.includes("next") || lower.includes("should i") || lower.includes("todo")) {
-    return `Recommended next steps based on this document:
-
-1. Review the full document content carefully
-2. Identify any dates, deadlines, or time-sensitive items
-3. Extract key contact information if present
-4. File or archive the document appropriately
-5. Follow up on any action items mentioned in the content
-
-Prioritize based on your specific needs and context.`
+  if (lower.includes("action") || lower.includes("next") || lower.includes("should i") || lower.includes("todo") || lower.includes("what do")) {
+    const lines: string[] = ["Recommended next steps:"]
+    lines.push("")
+    lines.push(`1. Review the full ${docType.toLowerCase()} document thoroughly`)
+    if (numbers.length > 0) lines.push(`2. Verify the key figures mentioned: ${numbers.slice(0, 5).join(", ")}`)
+    if (email) lines.push(`3. Follow up with the contact at ${email} if needed`)
+    lines.push(`4. File or organize the document for future reference`)
+    lines.push(`5. Flag any deadlines, dates, or time-sensitive items`)
+    if (docType === "Contract" || docType === "Legal Document") lines.push("6. Have legal counsel review before signing")
+    if (docType === "Invoice") lines.push("6. Process payment before the due date")
+    return lines.join("\n")
   }
 
-  if (lower.includes("keyword") || lower.includes("topic") || lower.includes("theme") || lower.includes("category")) {
-    return `Based on the document content, here are relevant topics and themes:
-
-• General business and professional content
-• Information that may require further categorization
-• Mixed content spanning multiple topics
-
-The document appears to cover a range of subjects. For more specific keyword analysis, consider using the main analysis view.`
+  if (lower.includes("number") || lower.includes("amount") || lower.includes("figure") || lower.includes("count") || lower.includes("data")) {
+    if (numbers.length === 0) return "I don't see any significant numbers or figures in this document. It appears to be primarily text-based."
+    return `Here are the numbers I found in this document:\n\n${numbers.map(n => `• ${n}`).join("\n")}\n\nThere ${numbers.length === 1 ? "is" : "are"} ${numbers.length} numeric value${numbers.length > 1 ? "s" : ""} in total. Consider cross-referencing these with any related documents or expected figures.`
   }
 
-  if (lower.includes("simple") || lower.includes("explain") || lower.includes("dumb") || lower.includes("easy")) {
-    return `Here's a simple explanation of this document:
-
-This is a document that contains information organized in a structured way. It includes text, and possibly numbers, dates, or other data. The best way to understand it is to:
-
-1. Start with the summary section of your analysis
-2. Review the key points highlighted
-3. Check for any risks or warnings
-4. Then read the full document if needed
-
-Feel free to ask more specific questions about the content!`
+  if (lower.includes("keyword") || lower.includes("topic") || lower.includes("theme") || lower.includes("category") || lower.includes("about")) {
+    if (keywords.length === 0) return "The document uses relatively few distinct terms. It appears to be concise or brief."
+    return `Key topics and themes identified in this document:\n\n${keywords.map(k => `• ${k}`).join("\n")}\n\nThese terms appear most frequently in the content and represent the main subjects discussed.`
   }
 
-  return `Thank you for your question about this document. Based on the content available:
+  if (lower.includes("simple") || lower.includes("explain") || lower.includes("dumb") || lower.includes("easy") || lower.includes("layman")) {
+    return `Here's a simple explanation of this document:\n\nThis is a "${docType}" document. It contains information organized in text form. ${firstSentence ? `It starts by saying: "${firstSentence.slice(0, 120)}".` : ""} ${numbers.length > 0 ? `There are some numbers mentioned that you should pay attention to. ` : ""}${email ? `There's a contact email (${email}) if you need to reach someone. ` : ""}\n\nThe best way to understand it is to read through it once, note any important points, and take action on anything that requires a response.`
+  }
 
-${preview}
+  if (lower.includes("date") || lower.includes("deadline") || lower.includes("when") || lower.includes("time") || lower.includes("schedule")) {
+    const dateMatches = documentText.match(/\d{1,2}\/\d{1,2}\/\d{2,4}|\d{4}-\d{2}-\d{2}|[A-Z][a-z]+ \d{1,2},? \d{4}/g)
+    if (dateMatches) {
+      return `I found these date references in the document:\n\n${dateMatches.map(d => `• ${d}`).join("\n")}\n\nCheck each date to see if it represents a deadline, effective date, or important milestone.`
+    }
+    return "I don't see any obvious date references in this document. It may not contain specific dates or deadlines."
+  }
 
-For a more detailed answer, try asking about specific aspects such as:
-• Summarize the key points
-• What are the main risks?
-• What actions should I take?
-• Explain this in simple terms`
+  return `Regarding your question about this ${docType} document:\n\n${firstSentence ? `The document opens with: "${firstSentence.slice(0, 150)}"` : `The document contains approximately ${wordCount} words`}. ${keywords.length > 0 ? `Key topics appear to be: ${keywords.slice(0, 4).join(", ")}.` : ""}\n\nCould you be more specific? You can ask about:\n• Summary and key points\n• Risks or concerns\n• Recommended actions\n• Numbers or data\n• Key dates`
 }

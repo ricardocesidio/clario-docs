@@ -5,7 +5,7 @@ export type PlanLimits = {
 }
 
 export const PLAN_LIMITS: PlanLimits = {
-  FREE: { documentsPerMonth: 5, maxFileSizeMB: 10 },
+  FREE: { documentsPerMonth: 50, maxFileSizeMB: 10 },
   PRO: { documentsPerMonth: 100, maxFileSizeMB: 25 },
   BUSINESS: { documentsPerMonth: 500, maxFileSizeMB: 50 },
 }
