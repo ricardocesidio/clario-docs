@@ -4,6 +4,10 @@
 
 Upload any document — contracts, reports, invoices, resumes — and get instant AI summaries, risks, insights, and answers. Chat with your documents to extract deeper understanding.
 
+> 🔗 **Live demo:** [clario-docs.vercel.app](https://clario-docs.vercel.app)
+>
+> Use **Try Demo** on the login page for instant access (no registration needed).
+
 ## 🎥 Full Project Walkthrough
 
 [![Watch the walkthrough](https://img.youtube.com/vi/YOUTUBE_VIDEO_ID/maxresdefault.jpg)](https://www.youtube.com/watch?v=YOUTUBE_VIDEO_ID)
@@ -28,7 +32,7 @@ Upload any document — contracts, reports, invoices, resumes — and get instan
 ### Admin Dashboard
 ![Admin Dashboard](./public/screenshots/admin.png)
 
-> Screenshots will be added after deployment. See the [walkthrough video](#-full-project-walkthrough) for a live demo.
+> Take screenshots from the live site at [clario-docs.vercel.app](https://clario-docs.vercel.app) and save them to `public/screenshots/`. See `docs/screenshot-checklist.md` for guidance.
 
 ## Tech Stack
 
