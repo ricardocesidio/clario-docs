@@ -8,7 +8,6 @@ import {
   generateFileName,
   extractTextFromFile,
   isAllowedFileType,
-  getFileTypeLabel,
 } from "@/lib/documents"
 
 export async function POST(request: NextRequest) {
@@ -77,7 +76,7 @@ export async function POST(request: NextRequest) {
     })
 
     try {
-      const analysis = await analyzeDocument(extractedText)
+      const { source, ...analysis } = await analyzeDocument(extractedText)
 
       await prisma.analysis.create({
         data: {
@@ -92,6 +91,7 @@ export async function POST(request: NextRequest) {
           tone: analysis.tone,
           confidenceScore: analysis.confidenceScore,
           suggestedQuestions: analysis.suggestedQuestions,
+          source,
         },
       })
 

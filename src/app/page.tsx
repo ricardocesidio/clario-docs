@@ -43,7 +43,7 @@ const features = [
   {
     icon: Shield,
     title: "Secure & Private",
-    description: "Your documents are encrypted and processed securely. You control access.",
+    description: "Documents are protected by authenticated access and isolated by user ownership.",
   },
   {
     icon: BarChart3,
@@ -177,7 +177,7 @@ const faqs = [
   },
   {
     question: "Is my data secure?",
-    answer: "Yes. Documents are encrypted in transit and at rest. We never share your data with third parties. You can delete your documents at any time.",
+    answer: "Documents are protected by authenticated access and isolated by user ownership. We never share your data with third parties. You can delete your documents at any time.",
   },
   {
     question: "Can I cancel my subscription?",
@@ -533,7 +533,7 @@ export default function LandingPage() {
             Ready to Transform Your Document Workflow?
           </h2>
           <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Join thousands of professionals who use ClarioDocs to analyze documents faster and make better decisions.
+            Analyze documents faster and make better decisions with AI-powered insights.
           </p>
           <Link href={user ? "/dashboard" : "/register"}>
             <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-500 hover:from-purple-500 hover:to-blue-400 text-white border-0 text-base px-8 h-12">

@@ -32,7 +32,7 @@ Upload any document — contracts, reports, invoices, resumes — and get instan
 ### Admin Dashboard
 ![Admin Dashboard](./public/screenshots/admin.png)
 
-> Take screenshots from the live site at [clario-docs.vercel.app](https://clario-docs.vercel.app) and save them to `public/screenshots/`. See `docs/screenshot-checklist.md` for guidance.
+> Screenshots show the live site at [clario-docs.vercel.app](https://clario-docs.vercel.app).
 
 ## Tech Stack
 
@@ -252,7 +252,7 @@ MAX_FILE_SIZE_MB=10
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/clariodocs.git
+git clone https://github.com/ricardocesidio/clario-docs.git
 cd clariodocs
 
 # Install dependencies
@@ -439,7 +439,7 @@ This project demonstrates:
 - **Modern UI** — Tailwind CSS v4, shadcn/ui with Base UI, dark theme, responsive design
 - **TypeScript** — Full type safety throughout
 - **Database design** — Prisma ORM with PostgreSQL, migrations, seed data
-- **Security** — JWT auth, bcrypt password hashing, route protection, file validation
+- **Security** — JWT auth (with env-aware secret), bcrypt password hashing, route protection, file validation, prompt-injection guard
 - **DevOps ready** — Environment-based config, Vercel/Neon deployment ready
 
 ## Production Checklist
@@ -500,6 +500,7 @@ npx tsx prisma/seed.ts
 
 ## Known Limitations
 
+- **Document truncation:** Long documents are truncated at ~50K characters. Full RAG (chunking, embeddings, vector search) is not yet implemented. Very long contracts or reports may have later sections ignored.
 - **File type support:** PDF and TXT are fully supported. DOC/DOCX support is planned but not yet implemented.
 - **Export:** Markdown and PDF export are supported. More export formats are planned.
 - **Storage:** Local filesystem storage is for development. Cloudflare R2 is supported for production.
@@ -510,6 +511,7 @@ npx tsx prisma/seed.ts
 
 ## Future Improvements
 
+- RAG pipeline with chunking, embeddings, vector search, and source citations for long documents
 - Team workspaces with shared documents
 - DOC/DOCX text extraction
 - Email notifications via Resend

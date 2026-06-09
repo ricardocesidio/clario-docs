@@ -3,7 +3,11 @@ import jwt from "jsonwebtoken"
 import bcrypt from "bcryptjs"
 import { prisma } from "./prisma"
 
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || "fallback-secret-change-in-production"
+const JWT_SECRET = process.env.NEXTAUTH_SECRET
+if (!JWT_SECRET) {
+  throw new Error("NEXTAUTH_SECRET environment variable is required")
+}
+const JWT_SECRET_KEY: string = JWT_SECRET
 
 export type JWTPayload = {
   userId: string
@@ -12,12 +16,12 @@ export type JWTPayload = {
 }
 
 export function signToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" })
+  return jwt.sign(payload, JWT_SECRET_KEY, { expiresIn: "7d" })
 }
 
 export function verifyToken(token: string): JWTPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as JWTPayload
+    return jwt.verify(token, JWT_SECRET_KEY) as JWTPayload
   } catch {
     return null
   }

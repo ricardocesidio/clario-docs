@@ -41,6 +41,7 @@ type Analysis = {
   tone: string
   confidenceScore: number
   suggestedQuestions: string[]
+  source?: string
 }
 
 type Document = {
@@ -255,6 +256,21 @@ export default function DocumentDetailPage() {
           <CardContent className="p-4 flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-red-400" />
             <p className="text-sm text-red-400">Analysis failed. Try uploading a different file, or check that the document contains extractable text.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {doc.analysis && doc.analysis.source === "mock" && (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardContent className="p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-amber-400">Demo analysis</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                The AI service is temporarily unavailable. This analysis was generated using fallback logic.
+                Upload a document when the AI service is active for full results.
+              </p>
+            </div>
           </CardContent>
         </Card>
       )}

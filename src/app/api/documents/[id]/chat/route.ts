@@ -94,11 +94,11 @@ export async function POST(
         documentId: id,
         userId: user.id,
         role: "ASSISTANT",
-        content: response,
+        content: response.content,
       },
     })
 
-    return NextResponse.json({ message: assistantMessage })
+    return NextResponse.json({ message: assistantMessage, source: response.source })
   } catch (error) {
     console.error("Chat error:", error)
     return NextResponse.json(

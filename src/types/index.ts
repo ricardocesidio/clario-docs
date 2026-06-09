@@ -23,6 +23,17 @@ export type AnalysisResult = {
   suggestedQuestions: string[]
 }
 
+export type AnalysisSource = "openai" | "mock"
+
+export type AnalysisResponse = AnalysisResult & {
+  source: AnalysisSource
+}
+
+export type ChatResponse = {
+  content: string
+  source: AnalysisSource
+}
+
 export type DashboardStats = {
   totalDocuments: number
   documentsThisMonth: number
