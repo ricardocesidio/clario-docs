@@ -16,26 +16,18 @@ export async function extractText(
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
   try {
-    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.js")
-    pdfjs.GlobalWorkerOptions.workerSrc = null as unknown as string
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { PDFParse } = require("pdf-parse")
+    const parser = new PDFParse({ data: buffer })
+    const result = await parser.getText()
+    const text = result?.text || ""
 
-    const data = new Uint8Array(buffer)
-    const doc = await pdfjs.getDocument({ data }).promise
-    const pages: string[] = []
-
-    for (let i = 1; i <= doc.numPages; i++) {
-      const page = await doc.getPage(i)
-      const content = await page.getTextContent()
-      const text = content.items.map((item: { str?: string }) => item.str || "").join(" ")
-      pages.push(text)
-    }
-
-    const full = pages.join("\n\n").trim()
-    if (!full) {
+    if (!text || text.trim().length === 0) {
       return "Failed to extract text from PDF. The file may be scanned or image-based."
     }
-    return full
-  } catch (error) {
+
+    return text
+  } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
     console.error("PDF parsing error:", message)
     return "Failed to extract text from PDF. The file may be scanned or image-based."
