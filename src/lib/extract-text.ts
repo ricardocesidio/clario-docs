@@ -1,18 +1,21 @@
-// Initialize pdfjs worker as data URL to work in serverless environments
-function initPdfjsWorker(): string {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const workerPath = require.resolve("pdfjs-dist/legacy/build/pdf.worker.min.mjs")
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const fs = require("fs")
-    const content = fs.readFileSync(workerPath, "utf-8")
-    return "data:application/javascript;base64," + Buffer.from(content).toString("base64")
-  } catch {
-    return ""
-  }
-}
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const fs = require("fs")
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const pdfjs = require("pdfjs-dist/legacy/build/pdf.mjs")
 
-const pdfjsWorkerUrl = initPdfjsWorker()
+// Embed the worker inline as a data URL so no separate file is needed at runtime
+let pdfjsWorkerUrl = ""
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const workerPath = require.resolve("pdfjs-dist/legacy/build/pdf.worker.min.mjs")
+  const content = fs.readFileSync(workerPath, "utf-8")
+  pdfjsWorkerUrl = "data:application/javascript;base64," + Buffer.from(content).toString("base64")
+  if (pdfjsWorkerUrl) {
+    pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
+  }
+} catch (e) {
+  console.error("Failed to initialize pdfjs worker:", e)
+}
 
 export async function extractText(
   buffer: Buffer,
@@ -32,12 +35,6 @@ export async function extractText(
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfjs = require("pdfjs-dist/legacy/build/pdf.mjs")
-    if (pdfjsWorkerUrl) {
-      pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
-    }
-
     const data = new Uint8Array(buffer)
     const doc = await pdfjs.getDocument({ data }).promise
     const pages: string[] = []
