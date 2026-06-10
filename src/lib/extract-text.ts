@@ -1,6 +1,3 @@
-import fs from "fs"
-import path from "path"
-import os from "os"
 import { PDFParse } from "pdf-parse"
 
 export async function extractText(
@@ -21,14 +18,9 @@ export async function extractText(
 
 async function extractPdfText(buffer: Buffer, _originalName?: string): Promise<string> {
   try {
-    const tmpPath = path.join(os.tmpdir(), `clariodocs-${Date.now()}.pdf`)
-    fs.writeFileSync(tmpPath, buffer)
-
-    const parser = new PDFParse({ url: tmpPath })
+    const parser = new PDFParse({ data: buffer })
     const result = await parser.getText()
     const text = result?.text || ""
-
-    try { fs.unlinkSync(tmpPath) } catch {}
 
     if (!text || text.trim().length === 0) {
       return "Failed to extract text from PDF. The file may be scanned or image-based."
