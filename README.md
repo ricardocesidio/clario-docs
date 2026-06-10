@@ -526,3 +526,4 @@ MIT
 ---
 
 Built with [Next.js](https://nextjs.org) · [Prisma](https://prisma.io) · [Tailwind CSS](https://tailwindcss.com) · [shadcn/ui](https://ui.shadcn.com) · [OpenAI](https://openai.com) · [Stripe](https://stripe.com) · [Recharts](https://recharts.org)
+
