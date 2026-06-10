@@ -1,10 +1,10 @@
 export async function extractText(
   buffer: Buffer,
   fileType: string,
-  fileName?: string
+  _fileName?: string
 ): Promise<string> {
   if (fileType === "application/pdf") {
-    return extractPdfText(buffer, fileName)
+    return extractPdfText(buffer)
   }
 
   if (fileType === "text/plain") {
@@ -14,18 +14,27 @@ export async function extractText(
   return "Unsupported file type for text extraction."
 }
 
-async function extractPdfText(buffer: Buffer, _originalName?: string): Promise<string> {
+async function extractPdfText(buffer: Buffer): Promise<string> {
   try {
-    const { PDFParse } = await import("pdf-parse")
-    const parser = new PDFParse({ data: buffer })
-    const result = await parser.getText()
-    const text = result?.text || ""
+    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.js")
+    pdfjs.GlobalWorkerOptions.workerSrc = null as unknown as string
 
-    if (!text || text.trim().length === 0) {
-      return "Failed to extract text from PDF. The file may be scanned or image-based."
+    const data = new Uint8Array(buffer)
+    const doc = await pdfjs.getDocument({ data }).promise
+    const pages: string[] = []
+
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i)
+      const content = await page.getTextContent()
+      const text = content.items.map((item: { str?: string }) => item.str || "").join(" ")
+      pages.push(text)
     }
 
-    return text
+    const full = pages.join("\n\n").trim()
+    if (!full) {
+      return "Failed to extract text from PDF. The file may be scanned or image-based."
+    }
+    return full
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     console.error("PDF parsing error:", message)
