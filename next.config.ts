@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
-  serverExternalPackages: ["pdfjs-dist"],
+  serverExternalPackages: [],
   devIndicators: {
     position: "bottom-right",
   },

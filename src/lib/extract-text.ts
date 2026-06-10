@@ -1,5 +1,5 @@
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfjs = require("pdfjs-dist")
+import * as pdfjs from "pdfjs-dist"
+import "pdfjs-dist/build/pdf.worker.min.mjs"
 
 export async function extractText(
   buffer: Buffer,
