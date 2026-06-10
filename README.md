@@ -48,7 +48,9 @@ Upload any document — contracts, reports, invoices, resumes — and get instan
 | Charts | Recharts |
 | Icons | Lucide React |
 | Notifications | Sonner |
-| PDF Parsing | pdf-parse |
+| PDF Parsing | pdfjs-dist |
+| Validation | Zod |
+| Testing | Vitest |
 | Deployment | Vercel + Neon (recommended) |
 
 ## Features
@@ -75,6 +77,9 @@ Upload any document — contracts, reports, invoices, resumes — and get instan
 - **Loading Skeletons** — All major pages have skeleton loading states
 - **Empty States** — Contextual empty states with CTAs on every list page
 - **Error Handling** — Clean error messages for validation, auth, limits, and API failures
+- **Degraded Mode** — AI responses include `source` metadata (`openai` | `mock`) with visible banner when fallback is used
+- **AI Validation** — Zod schema validation of OpenAI structured JSON responses
+- **Prompt Injection Protection** — Untrusted document content is isolated from instructions via `<document>` delimiters
 - **Responsive Design** — Mobile, tablet, and desktop optimized
 - **Dark Mode** — Premium dark SaaS aesthetic with purple/blue gradient accents
 - **SEO Metadata** — Proper page titles, descriptions, and keywords
@@ -439,8 +444,20 @@ This project demonstrates:
 - **Modern UI** — Tailwind CSS v4, shadcn/ui with Base UI, dark theme, responsive design
 - **TypeScript** — Full type safety throughout
 - **Database design** — Prisma ORM with PostgreSQL, migrations, seed data
-- **Security** — JWT auth (with env-aware secret), bcrypt password hashing, route protection, file validation, prompt-injection guard
+- **Security** — JWT auth (env-aware, fails hard if secret is missing), bcrypt password hashing, route protection, file validation, prompt-injection guard
 - **DevOps ready** — Environment-based config, Vercel/Neon deployment ready
+
+## Testing
+
+```bash
+# Run all tests
+npm test
+
+# Watch mode
+npm run test:watch
+```
+
+Tests cover: authentication (JWT sign/verify), AI analysis (structural validity, document type detection), file validation (type, size), injection resistance.
 
 ## Production Checklist
 
