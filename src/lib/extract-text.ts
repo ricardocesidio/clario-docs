@@ -1,5 +1,3 @@
-import { PDFParse } from "pdf-parse"
-
 export async function extractText(
   buffer: Buffer,
   fileType: string,
@@ -18,6 +16,7 @@ export async function extractText(
 
 async function extractPdfText(buffer: Buffer, _originalName?: string): Promise<string> {
   try {
+    const { PDFParse } = await import("pdf-parse")
     const parser = new PDFParse({ data: buffer })
     const result = await parser.getText()
     const text = result?.text || ""
@@ -28,7 +27,8 @@ async function extractPdfText(buffer: Buffer, _originalName?: string): Promise<s
 
     return text
   } catch (error) {
-    console.error("PDF parsing error:", error)
+    const message = error instanceof Error ? error.message : String(error)
+    console.error("PDF parsing error:", message)
     return "Failed to extract text from PDF. The file may be scanned or image-based."
   }
 }
