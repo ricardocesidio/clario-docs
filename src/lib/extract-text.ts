@@ -1,6 +1,7 @@
 import fs from "fs"
 import path from "path"
 import os from "os"
+import { PDFParse } from "pdf-parse"
 
 export async function extractText(
   buffer: Buffer,
@@ -20,7 +21,6 @@ export async function extractText(
 
 async function extractPdfText(buffer: Buffer, _originalName?: string): Promise<string> {
   try {
-    const { PDFParse } = require("pdf-parse")
     const tmpPath = path.join(os.tmpdir(), `clariodocs-${Date.now()}.pdf`)
     fs.writeFileSync(tmpPath, buffer)
 
