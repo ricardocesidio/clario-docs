@@ -1,3 +1,19 @@
+// Initialize pdfjs worker as data URL to work in serverless environments
+function initPdfjsWorker(): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const workerPath = require.resolve("pdfjs-dist/legacy/build/pdf.worker.min.mjs")
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require("fs")
+    const content = fs.readFileSync(workerPath, "utf-8")
+    return "data:application/javascript;base64," + Buffer.from(content).toString("base64")
+  } catch {
+    return ""
+  }
+}
+
+const pdfjsWorkerUrl = initPdfjsWorker()
+
 export async function extractText(
   buffer: Buffer,
   fileType: string,
@@ -17,16 +33,27 @@ export async function extractText(
 async function extractPdfText(buffer: Buffer): Promise<string> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PDFParse } = require("pdf-parse")
-    const parser = new PDFParse({ data: buffer })
-    const result = await parser.getText()
-    const text = result?.text || ""
-
-    if (!text || text.trim().length === 0) {
-      return "Failed to extract text from PDF. The file may be scanned or image-based."
+    const pdfjs = require("pdfjs-dist/legacy/build/pdf.mjs")
+    if (pdfjsWorkerUrl) {
+      pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl
     }
 
-    return text
+    const data = new Uint8Array(buffer)
+    const doc = await pdfjs.getDocument({ data }).promise
+    const pages: string[] = []
+
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i)
+      const content = await page.getTextContent()
+      const text = content.items.map((item: { str?: string }) => item.str || "").join(" ")
+      pages.push(text)
+    }
+
+    const full = pages.join("\n\n").trim()
+    if (!full) {
+      return "Failed to extract text from PDF. The file may be scanned or image-based."
+    }
+    return full
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error)
     console.error("PDF parsing error:", message)
